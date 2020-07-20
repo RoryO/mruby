@@ -19,6 +19,7 @@
 #include <mruby/gc.h>
 #include <mruby/error.h>
 #include <mruby/throw.h>
+#include <malloc.h>
 
 /*
   = Tri-color Incremental Garbage Collection
@@ -1314,7 +1315,7 @@ mrb_full_gc(mrb_state *mrb)
     gc->majorgc_old_threshold = gc->live_after_mark/100 * MAJOR_GC_INC_RATIO;
     gc->full = FALSE;
   }
-
+  malloc_trim(0);
   GC_TIME_STOP_AND_REPORT;
 }
 
