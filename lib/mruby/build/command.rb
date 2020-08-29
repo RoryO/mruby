@@ -126,6 +126,26 @@ module MRuby
       end
     end
 
+    def compiles?(source_text)
+      infile = Tempfile.new ['', '.c']
+      infile.write source_text
+      infile.close
+      sh("#{command} #{infile.path}", verbose: false) do |is_success, _|
+        infile.delete
+        return is_success
+      end
+    end
+
+    def has_header?(header_name)
+      compiles? test_code_template header: header_name
+    end
+
+    def has_function?(function_name, with_header: nil)
+      str = test_code_template function: function_name, header: with_header
+      puts str
+      compiles? str
+    end
+
     private
 
     #
@@ -161,6 +181,46 @@ module MRuby
         deps.uniq!
       end
       deps << MRUBY_CONFIG
+    end
+
+    def test_code_template(function: nil, header: nil)
+      preamble = ''
+      body = ''
+
+      if header
+        preamble += <<-TEMPLATE
+#if defined __has_include
+#if !__has_include("#{header}")
+#error "Header #{header} not found"
+#endif
+#endif
+#include <#{header}>
+        TEMPLATE
+      end
+
+      if function
+        preamble += <<-TEMPLATE
+#if defined __stub_#{function} || defined __stub___#{function}
+#{function} unavailable
+#endif
+        TEMPLATE
+
+        # This is how autoconf works when using a function prototype.
+        body += <<-TEMPLATE
+  void *a = (void*) &#{function};
+  long long b = (long long) a;
+  return (int) b;
+        TEMPLATE
+      else
+        body = 'return 0;'
+      end
+
+      <<-TEMPLATE
+#{preamble}
+int main(void) {{
+#{body}
+}}
+      TEMPLATE
     end
   end
 
